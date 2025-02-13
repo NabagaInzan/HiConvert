@@ -15,7 +15,7 @@ class PDFProcessor:
         self.reader = None
         self.poppler_path = os.getenv('POPPLER_PATH')
         self.logger = app_logger
-        self.zoom_factor = 3
+        self.zoom_factor = 1.5  # Réduit de 3 à 1.5
 
     def get_reader(self):
         if self.reader is None:
@@ -46,46 +46,47 @@ class PDFProcessor:
             # Définir le chemin du fichier CSV de sortie
             output_csv = output_dir / f"{pdf_path.stem}.csv"
             
-            # Convertir le PDF en images
+            # Traiter les pages une par une
+            all_text = []
+            reader = self.get_reader()
+            
+            # Convertir et traiter une page à la fois
             images = convert_from_path(
                 str(pdf_path),
                 poppler_path=self.poppler_path,
-                dpi=150,
-                thread_count=1
+                dpi=120,  # Réduit de 150 à 120
+                thread_count=1,
+                single_file=True
             )
             
             if not images:
                 raise ValueError("Aucune page trouvée dans le PDF")
 
-            # Extraire le texte
-            all_text = []
-            reader = self.get_reader()
-            
-            for img in images:
+            for i, img in enumerate(images, 1):
+                # Traiter une seule page
                 zoomed_img = self.zoom_image(img)
                 img_array = np.array(zoomed_img.convert('L'))
                 result = reader.readtext(img_array)
                 text = ' '.join([t[1] for t in result])
                 all_text.append(text)
                 
+                # Libérer la mémoire immédiatement
+                del img
                 del img_array
                 del zoomed_img
+                del result
                 gc.collect()
-
-            del images
-            gc.collect()
-
-            # Créer et sauvegarder le CSV
-            df = pd.DataFrame({
-                'page': range(1, len(all_text) + 1),
-                'texte': all_text
-            })
-            
-            df.to_csv(str(output_csv), index=False, encoding='utf-8')
-
-            del df
-            del all_text
-            gc.collect()
+                
+                # Sauvegarder progressivement dans le CSV
+                if i % 5 == 0 or i == len(images):
+                    df = pd.DataFrame({
+                        'page': range(len(all_text) - len(all_text)%5 + 1, len(all_text) + 1),
+                        'texte': all_text[-5:]
+                    })
+                    mode = 'a' if i > 5 else 'w'
+                    df.to_csv(str(output_csv), mode=mode, header=(mode=='w'), index=False, encoding='utf-8')
+                    del df
+                    gc.collect()
 
             processing_time = time.time() - start_time
             message = f"Traité en {processing_time:.2f} secondes"

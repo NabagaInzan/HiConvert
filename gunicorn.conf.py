@@ -6,10 +6,10 @@ port = int(os.environ.get("PORT", "10000"))
 bind = f"0.0.0.0:{port}"
 
 # Worker configuration
-workers = 4  # Réduire le nombre de workers pour Render
+workers = 1  # Réduire le nombre de workers pour Render
 worker_class = "gthread"  # Utiliser gthread au lieu de sync
 threads = 2
-worker_tmp_dir = '/dev/shm'
+worker_tmp_dir = '/tmp'
 
 # Timeouts
 timeout = 120
