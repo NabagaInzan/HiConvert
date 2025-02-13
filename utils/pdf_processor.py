@@ -6,6 +6,7 @@ import easyocr
 import numpy as np
 import re
 from .logger import app_logger
+from pathlib import Path
 
 class PDFProcessor:
     def __init__(self):
@@ -13,137 +14,45 @@ class PDFProcessor:
         self.poppler_path = os.getenv('POPPLER_PATH')
         self.logger = app_logger
 
-    def process_directory(self, directory_path):
+    def process_file(self, pdf_path, output_name):
         """
-        Traite tous les fichiers plan.pdf dans le répertoire et ses sous-répertoires
+        Traite un seul fichier PDF
         """
         try:
-            # Normaliser le chemin pour le système d'exploitation actuel
-            directory_path = os.path.normpath(directory_path)
-            
-            # Vérifier si le dossier existe
-            if not os.path.exists(directory_path):
-                error_msg = f"Le dossier n'existe pas : {directory_path}"
-                self.logger.error(error_msg)
-                return [], error_msg
+            pdf_path = Path(pdf_path)
+            if not pdf_path.is_file():
+                raise FileNotFoundError(f"Le fichier {pdf_path} n'existe pas")
 
-            # Compter le nombre total de fichiers plan.pdf
-            total_files = sum(len([f for f in files if f.lower() == "plan.pdf"]) 
-                            for _, _, files in os.walk(directory_path))
-            
-            if total_files == 0:
-                msg = f"Aucun fichier 'plan.pdf' trouvé dans {directory_path}"
-                self.logger.warning(msg)
-                return [], msg
-
-            processed_files = 0
-            results = []
             start_time = time.time()
-
-            for root, _, files in os.walk(directory_path):
-                for file_name in files:
-                    if file_name.lower() == "plan.pdf":
-                        file_path = os.path.join(root, file_name)
-                        # Utiliser le nom du dernier dossier comme nom du fichier CSV
-                        folder_name = os.path.basename(root)
-                        
-                        try:
-                            start_file_time = time.time()
-                            csv_path = self.process_file(file_path, folder_name)
-                            processing_time = time.time() - start_file_time
-                            
-                            results.append({
-                                'file': file_path,
-                                'csv': csv_path,
-                                'time': processing_time,
-                                'status': 'success'
-                            })
-                            
-                            self.logger.info(f"Fichier traité avec succès: {file_path}")
-                            self.logger.info(f"CSV créé: {csv_path}")
-                            processed_files += 1
-                            
-                        except Exception as e:
-                            error_msg = f"Erreur lors du traitement de {file_path}: {str(e)}"
-                            self.logger.error(error_msg)
-                            results.append({
-                                'file': file_path,
-                                'error': str(e),
-                                'status': 'error'
-                            })
-
-            total_time = time.time() - start_time
-            summary = f"Terminé. Temps total: {total_time:.2f} secondes, Fichiers traités: {processed_files}/{total_files}"
-            self.logger.info(summary)
             
-            return results, summary
+            # Convertir le PDF en images
+            images = convert_from_path(str(pdf_path), poppler_path=self.poppler_path)
+            
+            if not images:
+                raise ValueError("Aucune page trouvée dans le PDF")
+
+            # Extraire le texte de chaque page
+            all_text = []
+            for img in images:
+                result = self.reader.readtext(np.array(img))
+                text = ' '.join([t[1] for t in result])
+                all_text.append(text)
+
+            # Créer le DataFrame
+            df = pd.DataFrame({
+                'page': range(1, len(all_text) + 1),
+                'texte': all_text
+            })
+
+            # Créer le fichier CSV
+            csv_path = pdf_path.parent / f"{output_name}.csv"
+            df.to_csv(str(csv_path), index=False, encoding='utf-8')
+
+            processing_time = time.time() - start_time
+            message = f"Traité en {processing_time:.2f} secondes"
+            
+            return str(csv_path), message
 
         except Exception as e:
-            error_msg = f"Erreur lors du traitement du répertoire: {str(e)}"
-            self.logger.error(error_msg)
-            return [], error_msg
-
-    def process_file(self, file_path, folder_name):
-        """
-        Traite un fichier PDF et extrait les coordonnées
-        """
-        self.logger.info(f"Début du traitement du fichier : {file_path}")
-
-        try:
-            # Conversion du PDF en images
-            images = convert_from_path(file_path, poppler_path=self.poppler_path)
-            self.logger.info(f"PDF converti en {len(images)} images")
-
-            numbers = []
-            for i, image in enumerate(images):
-                image_np = np.array(image)
-                results = self.reader.readtext(image_np)
-                self.logger.info(f"Page {i+1}: {len(results)} zones de texte détectées")
-
-                # Extraction des nombres avec leurs coordonnées
-                for result in results:
-                    bbox, text, confidence = result
-                    extracted_numbers = re.findall(r'\b\d{5,}(?:\.\d+)?\b', text)
-                    
-                    for num in extracted_numbers:
-                        try:
-                            value = float(num.replace(',', '.'))
-                            if value > 100000:
-                                numbers.append({
-                                    'value': value,
-                                    'bbox': bbox,
-                                    'confidence': confidence,
-                                    'page': i + 1,
-                                    'text': text
-                                })
-                                self.logger.info(f"Nombre extrait: {value} (confiance: {confidence:.2f}, page: {i+1})")
-                        except ValueError as ve:
-                            self.logger.warning(f"Impossible de convertir en nombre: {num} - {str(ve)}")
-
-            if len(numbers) == 0:
-                self.logger.warning(f"Aucun nombre valide trouvé dans {file_path}")
-                raise ValueError("Aucune coordonnée valide trouvée dans le document")
-
-            if len(numbers) % 2 != 0:
-                self.logger.warning(f"Nombre impair de coordonnées trouvées dans {file_path}")
-
-            # Création des listes X et Y
-            coordinates_data = []
-            for i in range(0, len(numbers) - 1, 2):
-                coordinates_data.append({
-                    'X': numbers[i]['value'],
-                    'Y': numbers[i + 1]['value'] if i + 1 < len(numbers) else None
-                })
-
-            df = pd.DataFrame(coordinates_data)
-
-            # Utiliser le nom du dossier pour le fichier CSV
-            csv_path = os.path.join(os.path.dirname(file_path), f"{folder_name}.csv")
-            df.to_csv(csv_path, index=False, sep=';', encoding='utf-8')
-            
-            self.logger.info(f"Fichier CSV créé : {csv_path} avec {len(coordinates_data)} paires de coordonnées")
-            return csv_path
-
-        except Exception as e:
-            self.logger.error(f"Erreur lors du traitement de {file_path}: {str(e)}")
+            self.logger.error(f"Erreur lors du traitement du fichier {pdf_path}: {str(e)}")
             raise

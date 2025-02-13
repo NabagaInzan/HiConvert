@@ -18,17 +18,15 @@
                         <h1 class="mt-2">Hi Convert</h1>
                     </div>
                     <div class="card-body">
-                        <form id="processForm" class="text-center">
+                        <form id="processForm" class="text-center" enctype="multipart/form-data">
                             <div class="mb-4">
                                 <div class="directory-select-area" id="directoryArea">
                                     <i class="fas fa-folder-open fa-3x mb-3"></i>
-                                    <p>Entrez le chemin complet du dossier contenant vos fichiers PDF</p>
-                                    <p class="text-muted small">Exemple: C:\Users\HP\Desktop\Inza Files\AFOR\ARRAH\ARRAH\ABOULAYE SOGODOGO</p>
-                                    <input type="text" id="directoryPath" class="form-control mb-3" placeholder="Collez le chemin complet du dossier ici">
+                                    <p>Sélectionnez vos fichiers PDF à traiter</p>
+                                    <input type="file" id="pdfFiles" name="files[]" class="form-control mb-3" multiple accept=".pdf" webkitdirectory directory>
                                 </div>
                             </div>
-                            <div id="processInfo" class="mb-3 d-none">
-                                <p class="selected-directory"></p>
+                            <div id="processInfo" class="mb-3">
                                 <button type="submit" class="btn btn-success">
                                     <i class="fas fa-cog"></i> Traiter les fichiers
                                 </button>
@@ -42,13 +40,9 @@
                             <p class="text-center" id="processingStatus">Traitement en cours...</p>
                         </div>
 
-                        <div id="resultArea" class="d-none">
-                            <div class="alert alert-success mb-3">
-                                <i class="fas fa-check-circle"></i> <span id="resultSummary"></span>
-                            </div>
-                            <div id="resultFiles" class="list-group mb-3">
-                                <!-- Les résultats seront ajoutés ici dynamiquement -->
-                            </div>
+                        <div id="resultsArea" class="d-none">
+                            <h4 class="text-center mb-3">Résultats</h4>
+                            <div id="resultsContent"></div>
                         </div>
                     </div>
                 </div>
@@ -56,41 +50,29 @@
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://kit.fontawesome.com/a076d05399.js"></script>
     <script>
-        // Fonction pour gérer la saisie du chemin
-        document.getElementById('directoryPath').addEventListener('input', function(e) {
-            const directoryPath = e.target.value.trim();
-            if (directoryPath) {
-                // Remplacer les barres obliques simples par des barres obliques inversées
-                const formattedPath = directoryPath.replace(/\//g, '\\');
-                e.target.value = formattedPath;
-                
-                document.querySelector('.selected-directory').textContent = `Dossier sélectionné : ${formattedPath}`;
-                document.getElementById('processInfo').classList.remove('d-none');
-            } else {
-                document.getElementById('processInfo').classList.add('d-none');
-            }
-        });
-
         document.getElementById('processForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
-            const directoryPath = document.getElementById('directoryPath').value.trim();
-            if (!directoryPath) {
-                alert('Veuillez saisir le chemin du dossier.');
+            const pdfFiles = document.getElementById('pdfFiles').files;
+            if (!pdfFiles.length) {
+                alert('Veuillez sélectionner des fichiers PDF.');
                 return;
             }
 
             const formData = new FormData();
-            formData.append('directory', directoryPath);
+            for (let i = 0; i < pdfFiles.length; i++) {
+                formData.append('files[]', pdfFiles[i]);
+            }
 
             document.getElementById('processInfo').classList.add('d-none');
             const progressArea = document.getElementById('progressArea');
-            const resultArea = document.getElementById('resultArea');
+            const resultsArea = document.getElementById('resultsArea');
             progressArea.classList.remove('d-none');
-            resultArea.classList.add('d-none');
+            resultsArea.classList.add('d-none');
 
             try {
                 const response = await fetch('/process', {
@@ -101,22 +83,18 @@
                 const data = await response.json();
                 
                 if (data.status === 'success') {
-                    document.getElementById('resultSummary').textContent = data.message;
-                    
-                    const resultFiles = document.getElementById('resultFiles');
-                    resultFiles.innerHTML = '';
+                    const resultsContent = document.getElementById('resultsContent');
+                    resultsContent.innerHTML = '';
                     
                     data.results.forEach(result => {
                         const item = document.createElement('div');
-                        item.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        item.className = 'alert alert-success mb-3';
                         
                         if (result.status === 'success') {
                             item.innerHTML = `
-                                <div>
-                                    <strong>${result.file}</strong>
-                                    <br>
-                                    <small class="text-muted">Traité en ${result.time.toFixed(2)} secondes</small>
-                                </div>
+                                <strong>${result.file}</strong>
+                                <br>
+                                <small class="text-muted">Traité en ${result.time.toFixed(2)} secondes</small>
                                 <a href="/download/${encodeURIComponent(result.csv)}" class="btn btn-primary btn-sm">
                                     <i class="fas fa-download"></i> CSV
                                 </a>
@@ -131,11 +109,11 @@
                             `;
                         }
                         
-                        resultFiles.appendChild(item);
+                        resultsContent.appendChild(item);
                     });
                     
                     progressArea.classList.add('d-none');
-                    resultArea.classList.remove('d-none');
+                    resultsArea.classList.remove('d-none');
                 } else {
                     throw new Error(data.error || 'Une erreur est survenue');
                 }
