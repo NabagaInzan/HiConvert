@@ -12,10 +12,10 @@ from PIL import Image
 
 class PDFProcessor:
     def __init__(self):
-        self.reader = None  # Initialisation tardive
+        self.reader = None
         self.poppler_path = os.getenv('POPPLER_PATH')
         self.logger = app_logger
-        self.zoom_factor = 3  # Facteur de zoom
+        self.zoom_factor = 3
 
     def get_reader(self):
         if self.reader is None:
@@ -23,17 +23,14 @@ class PDFProcessor:
         return self.reader
 
     def zoom_image(self, img):
-        """
-        Zoomer l'image avec le facteur spécifié
-        """
         width, height = img.size
         new_width = int(width * self.zoom_factor)
         new_height = int(height * self.zoom_factor)
         return img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
-    def process_file(self, pdf_path, output_name):
+    def process_file(self, pdf_path):
         """
-        Traite un seul fichier PDF
+        Traite un fichier PDF et retourne le chemin du CSV généré
         """
         try:
             pdf_path = Path(pdf_path)
@@ -42,53 +39,50 @@ class PDFProcessor:
 
             start_time = time.time()
             
-            # Convertir le PDF en images avec une résolution plus basse pour économiser la mémoire
+            # Créer le dossier de sortie s'il n'existe pas
+            output_dir = pdf_path.parent / 'results'
+            output_dir.mkdir(exist_ok=True)
+            
+            # Définir le chemin du fichier CSV de sortie
+            output_csv = output_dir / f"{pdf_path.stem}.csv"
+            
+            # Convertir le PDF en images
             images = convert_from_path(
                 str(pdf_path),
                 poppler_path=self.poppler_path,
-                dpi=150,  # Résolution de base
-                thread_count=1  # Limiter l'utilisation des threads
+                dpi=150,
+                thread_count=1
             )
             
             if not images:
                 raise ValueError("Aucune page trouvée dans le PDF")
 
-            # Extraire le texte de chaque page
+            # Extraire le texte
             all_text = []
             reader = self.get_reader()
             
             for img in images:
-                # Zoomer l'image
                 zoomed_img = self.zoom_image(img)
-                
-                # Convertir l'image en niveau de gris pour réduire la mémoire
                 img_array = np.array(zoomed_img.convert('L'))
-                
-                # Extraire le texte
                 result = reader.readtext(img_array)
                 text = ' '.join([t[1] for t in result])
                 all_text.append(text)
                 
-                # Libérer la mémoire
                 del img_array
                 del zoomed_img
                 gc.collect()
 
-            # Libérer la mémoire des images
             del images
             gc.collect()
 
-            # Créer le DataFrame
+            # Créer et sauvegarder le CSV
             df = pd.DataFrame({
                 'page': range(1, len(all_text) + 1),
                 'texte': all_text
             })
+            
+            df.to_csv(str(output_csv), index=False, encoding='utf-8')
 
-            # Créer le fichier CSV
-            csv_path = pdf_path.parent / f"{output_name}.csv"
-            df.to_csv(str(csv_path), index=False, encoding='utf-8')
-
-            # Libérer la mémoire
             del df
             del all_text
             gc.collect()
@@ -96,7 +90,8 @@ class PDFProcessor:
             processing_time = time.time() - start_time
             message = f"Traité en {processing_time:.2f} secondes"
             
-            return str(csv_path), message
+            # Retourner le chemin relatif du CSV
+            return str(output_csv.relative_to(pdf_path.parent.parent)), message
 
         except Exception as e:
             self.logger.error(f"Erreur lors du traitement du fichier {pdf_path}: {str(e)}")
