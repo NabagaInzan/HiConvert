@@ -3,6 +3,7 @@ from utils.pdf_processor import PDFProcessor
 from utils.logger import app_logger
 import os
 from dotenv import load_dotenv
+from pathlib import Path
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -12,7 +13,7 @@ app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 16 * 1024 * 1024))
 
 # Ensure upload folder exists
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+Path(app.config['UPLOAD_FOLDER']).mkdir(parents=True, exist_ok=True)
 
 @app.route('/')
 def index():
@@ -23,13 +24,14 @@ def process_directory():
     if 'directory' not in request.form:
         return jsonify({'error': 'Aucun chemin de dossier fourni'}), 400
     
-    directory_path = request.form['directory']
-    if not os.path.isdir(directory_path):
+    directory_path = Path(request.form['directory'])
+    
+    if not directory_path.exists():
         return jsonify({'error': 'Chemin de dossier invalide'}), 400
 
     try:
         processor = PDFProcessor()
-        results, summary = processor.process_directory(directory_path)
+        results, summary = processor.process_directory(str(directory_path))
         
         return jsonify({
             'status': 'success',
@@ -43,10 +45,11 @@ def process_directory():
 @app.route('/download/<path:filename>')
 def download_file(filename):
     try:
-        return send_file(filename,
+        filename = Path(filename)
+        return send_file(str(filename),
                         mimetype='text/csv',
                         as_attachment=True,
-                        download_name=os.path.basename(filename))
+                        download_name=filename.name)
     except Exception as e:
         app_logger.error(f"Erreur lors du téléchargement du fichier: {str(e)}")
         return jsonify({'error': str(e)}), 404

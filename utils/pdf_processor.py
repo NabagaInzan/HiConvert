@@ -10,7 +10,7 @@ from .logger import app_logger
 class PDFProcessor:
     def __init__(self):
         self.reader = easyocr.Reader(['fr'])
-        self.poppler_path = r'C:\poppler\Library\bin'
+        self.poppler_path = os.getenv('POPPLER_PATH')
         self.logger = app_logger
 
     def process_directory(self, directory_path):
@@ -18,6 +18,9 @@ class PDFProcessor:
         Traite tous les fichiers plan.pdf dans le répertoire et ses sous-répertoires
         """
         try:
+            # Normaliser le chemin pour le système d'exploitation actuel
+            directory_path = os.path.normpath(directory_path)
+            
             # Vérifier si le dossier existe
             if not os.path.exists(directory_path):
                 error_msg = f"Le dossier n'existe pas : {directory_path}"
