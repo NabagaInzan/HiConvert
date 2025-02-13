@@ -1,3 +1,11 @@
-workers = 4
+workers = 1
+worker_class = 'gthread'
+threads = 2
+worker_tmp_dir = '/dev/shm'
+worker_max_requests = 1000
+worker_max_requests_jitter = 50
+timeout = 300
 bind = "0.0.0.0:10000"
-timeout = 120
+max_requests = 1000
+max_requests_jitter = 50
+preload_app = True

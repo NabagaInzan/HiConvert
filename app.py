@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from werkzeug.utils import secure_filename
+import gc
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -38,26 +39,38 @@ def process_files():
     
     for file in files:
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            
-            # Créer un dossier temporaire pour ce fichier
-            temp_dir = upload_dir / Path(filename).stem
-            temp_dir.mkdir(parents=True, exist_ok=True)
-            
-            # Sauvegarder le fichier
-            file_path = temp_dir / "plan.pdf"
-            file.save(str(file_path))
-            
             try:
-                # Traiter le fichier
-                csv_path, message = processor.process_file(str(file_path), temp_dir.name)
-                results.append({
-                    'file': filename,
-                    'message': message,
-                    'csv_path': csv_path if csv_path else None
-                })
+                filename = secure_filename(file.filename)
+                
+                # Créer un dossier temporaire pour ce fichier
+                temp_dir = upload_dir / Path(filename).stem
+                temp_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Sauvegarder le fichier
+                file_path = temp_dir / "plan.pdf"
+                file.save(str(file_path))
+                
+                try:
+                    # Traiter le fichier
+                    csv_path, message = processor.process_file(str(file_path), temp_dir.name)
+                    results.append({
+                        'file': filename,
+                        'message': message,
+                        'csv_path': csv_path if csv_path else None
+                    })
+                except Exception as e:
+                    app_logger.error(f"Erreur lors du traitement du fichier {filename}: {str(e)}")
+                    results.append({
+                        'file': filename,
+                        'message': f"Erreur: {str(e)}",
+                        'csv_path': None
+                    })
+                finally:
+                    # Nettoyer la mémoire après chaque fichier
+                    gc.collect()
+                    
             except Exception as e:
-                app_logger.error(f"Erreur lors du traitement du fichier {filename}: {str(e)}")
+                app_logger.error(f"Erreur lors de la sauvegarde du fichier {filename}: {str(e)}")
                 results.append({
                     'file': filename,
                     'message': f"Erreur: {str(e)}",
