@@ -15,7 +15,11 @@ import logging
 # Configuration des logs
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('app.log', mode='a', encoding='utf-8')
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -132,64 +136,132 @@ def index():
         return make_response(jsonify({'error': 'Erreur lors du chargement de la page'}), 500)
 
 def allowed_file(filename):
-    logger.debug('Checking file: %s', filename)
-    is_allowed = filename.lower().endswith('.pdf') and 'plan' in filename.lower()
-    logger.debug('File %s is %sallowed', filename, '' if is_allowed else 'not ')
-    return is_allowed
+    ALLOWED_EXTENSIONS = {'pdf'}
+    ALLOWED_MIMETYPES = {'application/pdf'}
+    
+    # Vérifier l'extension
+    if '.' not in filename:
+        return False
+    extension = filename.rsplit('.', 1)[1].lower()
+    if extension not in ALLOWED_EXTENSIONS:
+        return False
+        
+    # Si c'est une requête avec un fichier, vérifier le type MIME
+    if request.method == 'POST' and 'files[]' in request.files:
+        file = request.files['files[]']
+        if file.content_type not in ALLOWED_MIMETYPES:
+            return False
+            
+    return True
 
 @app.route('/process', methods=['POST'])
 def process_files():
     try:
+        logger.debug('Starting process_files')
+        logger.debug('Request Content-Type: %s', request.content_type)
+        logger.debug('Request Content-Length: %s', request.content_length)
+        
+        # Vérifier la taille du contenu
+        if request.content_length and request.content_length > app.config['MAX_CONTENT_LENGTH']:
+            logger.warning('File size exceeds limit: %s > %s', request.content_length, app.config['MAX_CONTENT_LENGTH'])
+            return make_response(jsonify({
+                'error': 'La taille du fichier dépasse la limite autorisée',
+                'max_size': app.config['MAX_CONTENT_LENGTH']
+            }), 413)
+
         if 'files[]' not in request.files:
+            logger.warning('No files in request')
             return make_response(jsonify({'error': 'Aucun fichier fourni'}), 400)
 
         files = request.files.getlist('files[]')
+        logger.debug('Number of files received: %d', len(files))
+        
         if not files:
+            logger.warning('Empty files list')
             return make_response(jsonify({'error': 'Aucun fichier sélectionné'}), 400)
 
         results = []
         processor = PDFProcessor()
 
         for file in files:
+            logger.debug('Processing file: %s', file.filename if file else 'None')
+            
+            if not file or not file.filename:
+                logger.warning('Invalid file object or empty filename')
+                continue
+
             if not allowed_file(file.filename):
+                logger.warning('File type not allowed: %s', file.filename)
                 results.append({
                     'file': file.filename,
-                    'message': "Ignoré : Ce n'est pas un fichier plan.pdf",
-                    'csv_path': None
+                    'message': "Ignoré : Ce n'est pas un fichier PDF valide",
+                    'csv_path': None,
+                    'status': 'error'
                 })
                 continue
 
             try:
                 filename = secure_filename(file.filename)
+                logger.debug('Secured filename: %s', filename)
+                
                 file_dir = upload_dir / Path(filename).stem
+                logger.debug('Creating directory: %s', file_dir)
                 file_dir.mkdir(parents=True, exist_ok=True)
+                
                 pdf_path = file_dir / filename
+                logger.debug('Saving file to: %s', pdf_path)
                 file.save(str(pdf_path))
 
+                logger.debug('Processing PDF with PDFProcessor')
                 csv_path, message = processor.process_file(pdf_path)
+                logger.debug('PDF processed successfully: %s', csv_path)
+                
                 results.append({
                     'file': filename,
                     'message': message,
-                    'csv_path': f"{Path(filename).stem}/{csv_path}"
+                    'csv_path': f"{Path(filename).stem}/{csv_path}",
+                    'status': 'success'
                 })
 
             except Exception as e:
-                logger.error('Error processing file %s: %s\n%s', filename, e, traceback.format_exc())
+                error_msg = str(e)
+                logger.error('Error processing file %s: %s\n%s', filename, error_msg, traceback.format_exc())
                 results.append({
                     'file': filename,
-                    'message': f"Erreur: {str(e)}",
-                    'csv_path': None
+                    'message': f"Erreur: {error_msg}",
+                    'csv_path': None,
+                    'status': 'error'
                 })
+                
+            finally:
+                logger.debug('Cleaning up memory')
+                gc.collect()
 
-        return make_response(jsonify({
+        logger.debug('Preparing response with %d results', len(results))
+        response_data = {
             'status': 'success',
             'message': f"{len(results)} fichier(s) traité(s)",
             'results': results
-        }), 200)
+        }
+        
+        # Vérifier que la réponse est valide
+        try:
+            logger.debug('Validating JSON response')
+            jsonify(response_data)
+        except Exception as e:
+            logger.error('Error creating JSON response: %s\n%s', str(e), traceback.format_exc())
+            return make_response(jsonify({'error': 'Erreur lors de la création de la réponse'}), 500)
+
+        logger.debug('Sending successful response')
+        return make_response(jsonify(response_data), 200)
 
     except Exception as e:
-        logger.error('General error: %s\n%s', e, traceback.format_exc())
-        return make_response(jsonify({'error': 'Une erreur inattendue est survenue'}), 500)
+        error_msg = str(e)
+        logger.error('General error in process_files: %s\n%s', error_msg, traceback.format_exc())
+        return make_response(jsonify({
+            'error': 'Une erreur inattendue est survenue',
+            'details': error_msg
+        }), 500)
 
 @app.route('/download/<path:filename>')
 def download_file(filename):

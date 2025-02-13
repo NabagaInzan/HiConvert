@@ -33,6 +33,7 @@ class PDFProcessor:
         Traite un fichier PDF et retourne le chemin du CSV généré
         """
         try:
+            self.logger.info(f"Début du traitement du fichier : {pdf_path}")
             pdf_path = Path(pdf_path)
             if not pdf_path.is_file():
                 raise FileNotFoundError(f"Le fichier {pdf_path} n'existe pas")
@@ -46,50 +47,67 @@ class PDFProcessor:
             # Définir le chemin du fichier CSV de sortie
             output_csv = output_dir / f"{pdf_path.stem}.csv"
             
-            # Traiter les pages une par une
-            all_text = []
-            reader = self.get_reader()
-            
-            # Convertir et traiter une page à la fois
-            images = convert_from_path(
-                str(pdf_path),
-                poppler_path=self.poppler_path,
-                dpi=120,  # Réduit de 150 à 120
-                thread_count=1,
-                single_file=True
-            )
+            # Convertir le PDF en images
+            self.logger.debug("Conversion du PDF en images...")
+            try:
+                images = convert_from_path(
+                    str(pdf_path),
+                    poppler_path=self.poppler_path,
+                    dpi=120,
+                    thread_count=1,
+                    single_file=True
+                )
+            except Exception as e:
+                self.logger.error(f"Erreur lors de la conversion PDF : {str(e)}")
+                raise RuntimeError(f"Erreur lors de la conversion du PDF : {str(e)}")
             
             if not images:
                 raise ValueError("Aucune page trouvée dans le PDF")
 
+            # Extraire le texte
+            all_text = []
+            reader = self.get_reader()
+            
+            self.logger.debug(f"Traitement de {len(images)} pages...")
             for i, img in enumerate(images, 1):
-                # Traiter une seule page
-                zoomed_img = self.zoom_image(img)
-                img_array = np.array(zoomed_img.convert('L'))
-                result = reader.readtext(img_array)
-                text = ' '.join([t[1] for t in result])
-                all_text.append(text)
-                
-                # Libérer la mémoire immédiatement
-                del img
-                del img_array
-                del zoomed_img
-                del result
-                gc.collect()
-                
-                # Sauvegarder progressivement dans le CSV
-                if i % 5 == 0 or i == len(images):
-                    df = pd.DataFrame({
-                        'page': range(len(all_text) - len(all_text)%5 + 1, len(all_text) + 1),
-                        'texte': all_text[-5:]
-                    })
-                    mode = 'a' if i > 5 else 'w'
-                    df.to_csv(str(output_csv), mode=mode, header=(mode=='w'), index=False, encoding='utf-8')
-                    del df
+                self.logger.debug(f"Traitement de la page {i}/{len(images)}")
+                try:
+                    zoomed_img = self.zoom_image(img)
+                    img_array = np.array(zoomed_img.convert('L'))
+                    result = reader.readtext(img_array)
+                    text = ' '.join([t[1] for t in result])
+                    all_text.append(text)
+                except Exception as e:
+                    self.logger.error(f"Erreur lors du traitement de la page {i}: {str(e)}")
+                    raise RuntimeError(f"Erreur lors du traitement de la page {i}: {str(e)}")
+                finally:
+                    del img_array
+                    del zoomed_img
                     gc.collect()
+
+            del images
+            gc.collect()
+
+            # Créer et sauvegarder le CSV
+            try:
+                self.logger.debug("Sauvegarde des résultats dans le CSV...")
+                df = pd.DataFrame({
+                    'page': range(1, len(all_text) + 1),
+                    'texte': all_text
+                })
+                
+                df.to_csv(str(output_csv), index=False, encoding='utf-8')
+            except Exception as e:
+                self.logger.error(f"Erreur lors de la création du CSV : {str(e)}")
+                raise RuntimeError(f"Erreur lors de la création du CSV : {str(e)}")
+
+            del df
+            del all_text
+            gc.collect()
 
             processing_time = time.time() - start_time
             message = f"Traité en {processing_time:.2f} secondes"
+            self.logger.info(f"Traitement terminé : {message}")
             
             # Retourner le chemin relatif du CSV
             return str(output_csv.relative_to(pdf_path.parent.parent)), message
