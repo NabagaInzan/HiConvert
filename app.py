@@ -144,6 +144,10 @@ def download_file(filename):
         app_logger.error(f"Erreur lors du téléchargement du fichier: {str(e)}")
         return make_response(jsonify({'error': str(e)}), 404)
 
+@app.errorhandler(404)
+def not_found_error(error):
+    return make_response(jsonify({'error': 'Page non trouvée'}), 404)
+
 @app.errorhandler(413)
 def request_entity_too_large(error):
     return make_response(jsonify({'error': 'La taille du fichier dépasse la limite autorisée'}), 413)
@@ -156,6 +160,11 @@ def internal_server_error(error):
 def bad_gateway_error(error):
     return make_response(jsonify({'error': 'Erreur de passerelle'}), 502)
 
+@app.errorhandler(Exception)
+def handle_exception(error):
+    app_logger.error(f"Erreur non gérée: {str(error)}")
+    return make_response(jsonify({'error': 'Une erreur inattendue est survenue'}), 500)
+
 if __name__ == '__main__':
     app_logger.info("Démarrage de l'application Hi Convert")
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)), debug=False)

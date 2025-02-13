@@ -101,17 +101,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: formData
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
+            let data;
             const contentType = response.headers.get("content-type");
-            if (!contentType || !contentType.includes("application/json")) {
-                throw new Error("La réponse du serveur n'est pas au format JSON");
+            
+            try {
+                // Essayer de parser la réponse comme JSON
+                data = await response.json();
+            } catch (e) {
+                // Si ce n'est pas du JSON, lire le texte brut
+                const text = await response.text();
+                console.error('Réponse non-JSON reçue:', text);
+                throw new Error("Le serveur a renvoyé une réponse invalide. Veuillez réessayer.");
             }
 
-            const data = await response.json();
-            
+            if (!response.ok) {
+                throw new Error(data.error || `Erreur HTTP: ${response.status}`);
+            }
+
             if (data.error) {
                 throw new Error(data.error);
             }
