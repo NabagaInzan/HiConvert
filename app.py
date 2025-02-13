@@ -198,4 +198,6 @@ def download_file(filename):
 
 if __name__ == '__main__':
     logger.info("Démarrage de l'application Hi Convert")
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 10000)), debug=False)
+    port = int(os.environ.get('PORT', 10000))
+    logger.info(f"Démarrage sur le port {port}")
+    app.run(host='0.0.0.0', port=port, debug=False)
