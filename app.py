@@ -13,17 +13,30 @@ from werkzeug.exceptions import HTTPException
 import logging
 
 # Configuration des logs
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+)
 logger = logging.getLogger(__name__)
 
 # Charger les variables d'environnement
 load_dotenv()
 
 app = Flask(__name__)
+
+# Configuration de base
 app.config['UPLOAD_FOLDER'] = os.getenv('UPLOAD_FOLDER', 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = int(os.getenv('MAX_CONTENT_LENGTH', 20 * 1024 * 1024))
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+
+# Configuration du proxy
+app.wsgi_app = ProxyFix(
+    app.wsgi_app,
+    x_for=1,
+    x_proto=1,
+    x_host=1,
+    x_prefix=1
+)
 
 # Créer le dossier uploads s'il n'existe pas
 upload_dir = Path(app.config['UPLOAD_FOLDER'])
@@ -31,8 +44,9 @@ upload_dir.mkdir(parents=True, exist_ok=True)
 
 @app.before_request
 def log_request_info():
-    logger.debug('Headers: %s', request.headers)
-    logger.debug('Body: %s', request.get_data())
+    logger.debug('Headers: %s', dict(request.headers))
+    logger.debug('Method: %s, Path: %s', request.method, request.path)
+    logger.debug('Client IP: %s', request.remote_addr)
     
     # Vérifier si la requête attend du JSON
     if request.path != '/' and not request.path.startswith('/static/'):

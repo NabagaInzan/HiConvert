@@ -3,15 +3,19 @@ services:
     name: hiconvert
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 4 --threads 2 --worker-class gthread --timeout 120
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --worker-class gthread --timeout 120 --keep-alive 5 --max-requests 1000 --log-level debug --access-logfile - --error-logfile -
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
+      - key: MAX_CONTENT_LENGTH
+        value: 20971520
+      - key: UPLOAD_FOLDER
+        value: uploads
     healthCheckPath: /
+    autoDeploy: true
     disk:
       name: uploads
-      mountPath: /uploads
+      mountPath: /opt/render/project/src/uploads
       sizeGB: 1
-    autoDeploy: true
     numInstances: 1
     plan: starter
