@@ -6,16 +6,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const resultDiv = document.getElementById('result');
     const dropZone = document.getElementById('drop-zone');
 
-    // Mettre à jour le texte pour indiquer que seuls les fichiers plan.pdf sont acceptés
     dropZone.textContent = 'Glissez vos fichiers plan.pdf ici ou cliquez pour sélectionner';
 
-    // Prevent default drag behaviors
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, preventDefaults, false);
         document.body.addEventListener(eventName, preventDefaults, false);
     });
 
-    // Highlight drop zone when item is dragged over it
     ['dragenter', 'dragover'].forEach(eventName => {
         dropZone.addEventListener(eventName, highlight, false);
     });
@@ -24,10 +21,9 @@ document.addEventListener('DOMContentLoaded', function() {
         dropZone.addEventListener(eventName, unhighlight, false);
     });
 
-    // Handle dropped files
     dropZone.addEventListener('drop', handleDrop, false);
 
-    function preventDefaults (e) {
+    function preventDefaults(e) {
         e.preventDefault();
         e.stopPropagation();
     }
@@ -51,15 +47,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateFileCount() {
         const files = fileInput.files;
-        const planFiles = Array.from(files).filter(file => file.name.toLowerCase().includes('plan'));
-        const totalFiles = files.length;
-        const planCount = planFiles.length;
-
-        if (totalFiles > 0) {
-            if (planCount > 0) {
-                dropZone.innerHTML = `${planCount} fichier(s) plan.pdf sélectionné(s)<br><small>${totalFiles - planCount} autres fichiers seront ignorés</small>`;
+        const planFiles = Array.from(files).filter(file => 
+            file.name.toLowerCase().includes('plan') && file.name.toLowerCase().endsWith('.pdf')
+        );
+        if (files.length > 0) {
+            if (planFiles.length > 0) {
+                dropZone.innerHTML = `${planFiles.length} fichier(s) plan.pdf sélectionné(s)<br><small>${files.length - planFiles.length} autres fichiers seront ignorés</small>`;
             } else {
-                dropZone.innerHTML = `Attention : Aucun fichier plan.pdf sélectionné<br><small>${totalFiles} fichier(s) seront ignorés</small>`;
+                dropZone.innerHTML = `Attention : Aucun fichier plan.pdf sélectionné<br><small>${files.length} fichier(s) seront ignorés</small>`;
             }
         } else {
             dropZone.textContent = 'Glissez vos fichiers plan.pdf ici ou cliquez pour sélectionner';
@@ -75,7 +70,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Vérifier s'il y a au moins un fichier plan.pdf
         const planFiles = Array.from(files).filter(file => 
             file.name.toLowerCase().includes('plan') && file.name.toLowerCase().endsWith('.pdf')
         );
@@ -98,20 +92,20 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             const response = await fetch('/process', {
                 method: 'POST',
+                headers: {
+                    'Accept': 'application/json'
+                },
                 body: formData
             });
 
             let data;
-            const contentType = response.headers.get("content-type");
-            
             try {
-                // Essayer de parser la réponse comme JSON
                 data = await response.json();
             } catch (e) {
-                // Si ce n'est pas du JSON, lire le texte brut
+                console.error('Erreur lors du parsing JSON:', e);
                 const text = await response.text();
-                console.error('Réponse non-JSON reçue:', text);
-                throw new Error("Le serveur a renvoyé une réponse invalide. Veuillez réessayer.");
+                console.error('Réponse brute:', text);
+                throw new Error("Erreur lors de la lecture de la réponse du serveur");
             }
 
             if (!response.ok) {
