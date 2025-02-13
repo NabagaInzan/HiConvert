@@ -5,22 +5,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const processingStatus = document.getElementById('processingStatus');
     const resultsArea = document.getElementById('resultsArea');
     const resultsContent = document.getElementById('resultsContent');
+    const fileInput = document.getElementById('pdfFiles');
 
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const fileInput = document.getElementById('pdfFiles');
         const files = fileInput.files;
-        
         if (files.length === 0) {
             alert('Veuillez sélectionner au moins un fichier PDF.');
             return;
         }
 
+        // Vérifier que tous les fichiers sont des PDF
+        for (let file of files) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                alert(`Le fichier ${file.name} n'est pas un PDF`);
+                return;
+            }
+        }
+
         // Créer un FormData pour l'upload
         const formData = new FormData();
-        for (let i = 0; i < files.length; i++) {
-            formData.append('files[]', files[i]);
+        for (let file of files) {
+            formData.append('files[]', file);
         }
 
         // Afficher la barre de progression
@@ -34,33 +41,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: formData
             });
 
-            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-            if (response.ok) {
-                progressBar.style.width = '100%';
-                processingStatus.textContent = 'Traitement terminé !';
-                
-                // Afficher les résultats
-                resultsArea.classList.remove('d-none');
-                if (result.results && result.results.length > 0) {
-                    const resultsList = result.results.map(r => `
-                        <div class="alert alert-success">
-                            <strong>${r.file}</strong>
-                            <p>${r.message}</p>
-                            ${r.csv_path ? `<a href="/download/${encodeURIComponent(r.csv_path)}" class="btn btn-primary btn-sm">Télécharger CSV</a>` : ''}
-                        </div>
-                    `).join('');
-                    resultsContent.innerHTML = resultsList;
-                } else {
-                    resultsContent.innerHTML = `<div class="alert alert-info">${result.message}</div>`;
-                }
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+                throw new Error("La réponse du serveur n'est pas au format JSON");
+            }
+
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            // Afficher les résultats
+            resultsArea.classList.remove('d-none');
+            if (data.results && data.results.length > 0) {
+                const resultsList = data.results.map(r => `
+                    <div class="alert alert-success">
+                        <strong>${r.file}</strong>
+                        <p>${r.message}</p>
+                        ${r.csv_path ? `<a href="/download/${encodeURIComponent(r.csv_path)}" class="btn btn-primary btn-sm">Télécharger CSV</a>` : ''}
+                    </div>
+                `).join('');
+                resultsContent.innerHTML = resultsList;
             } else {
-                throw new Error(result.error || 'Une erreur est survenue');
+                resultsContent.innerHTML = `<div class="alert alert-info">${data.message}</div>`;
             }
         } catch (error) {
             progressBar.classList.add('bg-danger');
             processingStatus.textContent = `Erreur: ${error.message}`;
             console.error('Erreur:', error);
+        } finally {
+            progressBar.style.width = '100%';
+            processingStatus.textContent = 'Traitement terminé !';
         }
     });
 });
