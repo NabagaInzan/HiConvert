@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hi Convert - Traitement PDF</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .directory-select-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .directory-select-area:hover {
+            border-color: #0d6efd;
+            background: #e9ecef;
+        }
+        .logo {
+            max-width: 100px;
+            height: auto;
+        }
+        .progress {
+            height: 25px;
+        }
+        .btn-file-select {
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-file-select input[type=file] {
+            position: absolute;
+            top: 0;
+            right: 0;
+            min-width: 100%;
+            min-height: 100%;
+            font-size: 100px;
+            text-align: right;
+            filter: alpha(opacity=0);
+            opacity: 0;
+            outline: none;
+            background: white;
+            cursor: inherit;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card mt-5">
+                    <div class="card-header text-center">
+                        <i class="fas fa-file-pdf fa-3x text-primary mb-3"></i>
+                        <h1 class="mt-2">Hi Convert</h1>
+                    </div>
+                    <div class="card-body">
+                        <form id="processForm" class="text-center" enctype="multipart/form-data">
+                            <div class="mb-4">
+                                <div class="directory-select-area" id="directoryArea">
+                                    <i class="fas fa-folder-open fa-3x mb-3 text-primary"></i>
+                                    <p class="mb-3">Sélectionnez les dossiers contenant vos fichiers PDF de plans</p>
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle"></i> Note : Seuls les fichiers nommés exactement "plan.pdf" seront traités
+                                    </div>
+                                    <div class="btn-group">
+                                        <span class="btn btn-primary btn-file-select">
+                                            <i class="fas fa-folder"></i> Sélectionner un dossier
+                                            <input type="file" id="pdfFiles" name="files[]" multiple accept=".pdf" webkitdirectory directory>
+                                        </span>
+                                        <span class="btn btn-secondary btn-file-select">
+                                            <i class="fas fa-file"></i> Sélectionner des fichiers
+                                            <input type="file" id="pdfFilesOnly" name="files[]" multiple accept=".pdf">
+                                        </span>
+                                    </div>
+                                    <div id="selectedFiles" class="mt-3 text-start"></div>
+                                </div>
+                            </div>
+                            <div id="processInfo" class="mb-3">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-cog"></i> Traiter les fichiers
+                                </button>
+                            </div>
+                        </form>
+
+                        <div id="progressArea" class="d-none">
+                            <div class="progress mb-3">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <p class="text-center" id="processingStatus">Traitement en cours...</p>
+                        </div>
+
+                        <div id="resultsArea" class="d-none">
+                            <h4 class="text-center mb-3">Résultats</h4>
+                            <div id="resultsContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateSelectedFiles(files) {
+            const selectedFiles = document.getElementById('selectedFiles');
+            if (files.length > 0) {
+                let html = '<div class="alert alert-info">';
+                html += `<strong>${files.length} fichier(s) sélectionné(s):</strong><br>`;
+                html += '<ul class="mb-0">';
+                for (let i = 0; i < Math.min(files.length, 5); i++) {
+                    html += `<li>${files[i].name}</li>`;
+                }
+                if (files.length > 5) {
+                    html += `<li>... et ${files.length - 5} autres fichiers</li>`;
+                }
+                html += '</ul></div>';
+                selectedFiles.innerHTML = html;
+            } else {
+                selectedFiles.innerHTML = '';
+            }
+        }
+
+        document.getElementById('pdfFiles').addEventListener('change', function(e) {
+            updateSelectedFiles(this.files);
+        });
+
+        document.getElementById('pdfFilesOnly').addEventListener('change', function(e) {
+            updateSelectedFiles(this.files);
+        });
+
+        document.getElementById('processForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const pdfFiles = [...document.getElementById('pdfFiles').files, ...document.getElementById('pdfFilesOnly').files];
+            if (!pdfFiles.length) {
+                alert('Veuillez sélectionner des fichiers PDF.');
+                return;
+            }
+
+            const formData = new FormData();
+            for (let i = 0; i < pdfFiles.length; i++) {
+                formData.append('files[]', pdfFiles[i]);
+            }
+
+            document.getElementById('processInfo').classList.add('d-none');
+            const progressArea = document.getElementById('progressArea');
+            const resultsArea = document.getElementById('resultsArea');
+            progressArea.classList.remove('d-none');
+            resultsArea.classList.add('d-none');
+
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                const resultsContent = document.getElementById('resultsContent');
+                resultsContent.innerHTML = '';
+                
+                data.results.forEach(result => {
+                    const item = document.createElement('div');
+                    item.className = `alert ${result.status === 'success' ? 'alert-success' : 'alert-danger'} mb-3`;
+                    
+                    if (result.status === 'success') {
+                        item.innerHTML = `
+                            <strong>${result.file}</strong>
+                            <br>
+                            <small class="text-muted">${result.message}</small>
+                            <br>
+                            <a href="/download/${encodeURIComponent(result.csv_path)}" class="btn btn-primary btn-sm mt-2">
+                                <i class="fas fa-download"></i> Télécharger CSV
+                            </a>
+                        `;
+                    } else {
+                        item.innerHTML = `
+                            <strong>${result.file}</strong>
+                            <br>
+                            <small>${result.message}</small>
+                            ${result.message.includes("n'est pas un fichier PDF valide") ? `
+                                <br>
+                                <small class="text-muted">Note : Le fichier doit être nommé exactement "plan.pdf"</small>
+                            ` : ''}
+                        `;
+                    }
+                    
+                    resultsContent.appendChild(item);
+                });
+                
+                progressArea.classList.add('d-none');
+                resultsArea.classList.remove('d-none');
+            } catch (error) {
+                alert('Une erreur est survenue lors du traitement des fichiers.');
+                progressArea.classList.add('d-none');
+                document.getElementById('processInfo').classList.remove('d-none');
+            }
+        });
+    </script>
+</body>
+</html>

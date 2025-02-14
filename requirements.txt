@@ -1,4 +1,4 @@
-flask
+django>=4.2.0
 pdf2image
 numpy
 opencv-python-headless
@@ -6,6 +6,5 @@ torch
 torchvision
 easyocr
 pandas
-werkzeug
 gunicorn
 python-dotenv
