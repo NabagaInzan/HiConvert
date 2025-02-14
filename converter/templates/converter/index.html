@@ -1,112 +1,346 @@
 <!DOCTYPE html>
-<html lang="fr" data-bs-theme="light">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HiConvert - Convertisseur de PDF</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>HiConvert - Convertisseur PDF</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
-        .drag-area {
-            border: 2px dashed #ccc;
-            padding: 2rem;
-            text-align: center;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.3s ease;
+        :root {
+            /* Thème clair par défaut */
+            --primary-color: #2196F3;
+            --primary-dark: #1976D2;
+            --primary-light: #BBDEFB;
+            --accent-color: #FF4081;
+            --text-primary: #212121;
+            --text-secondary: #757575;
+            --divider-color: #BDBDBD;
+            --surface-color: #FFFFFF;
+            --error-color: #F44336;
+            --success-color: #4CAF50;
+            --background-color: #f5f5f5;
+            --card-background: #FFFFFF;
         }
-        .drag-area.active {
-            border-color: #007bff;
-            background-color: rgba(0, 123, 255, 0.1);
+
+        [data-theme="dark"] {
+            --primary-color: #90CAF9;
+            --primary-dark: #64B5F6;
+            --primary-light: #BBDEFB;
+            --accent-color: #FF80AB;
+            --text-primary: #FFFFFF;
+            --text-secondary: #B0BEC5;
+            --divider-color: #424242;
+            --surface-color: #424242;
+            --error-color: #EF5350;
+            --success-color: #66BB6A;
+            --background-color: #121212;
+            --card-background: #1E1E1E;
         }
-        .progress {
-            display: none;
-            margin-top: 1rem;
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
         .theme-switch {
             position: fixed;
-            top: 20px;
+            bottom: 20px;
             right: 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            cursor: pointer;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: transform 0.3s ease, background-color 0.3s ease;
+        }
+
+        .theme-switch:hover {
+            transform: scale(1.1);
+            background-color: var(--primary-dark);
+        }
+
+        .theme-switch i {
+            font-size: 24px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .app-bar {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
             z-index: 1000;
         }
-        .file-list {
-            margin-top: 2rem;
+
+        .app-title {
+            font-size: 1.25rem;
+            font-weight: 500;
         }
-        .file-card {
-            margin-bottom: 1rem;
+
+        .card {
+            background: var(--card-background);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            margin: 16px 0;
+            padding: 24px;
+            transition: all 0.3s cubic-bezier(.25,.8,.25,1);
+        }
+
+        .drag-area {
+            border: 2px dashed var(--primary-color);
+            border-radius: 8px;
+            padding: 32px 16px;
+            text-align: center;
+            cursor: pointer;
             transition: all 0.3s ease;
+            background-color: var(--surface-color);
         }
-        .file-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+
+        .drag-area.active {
+            border-color: var(--accent-color);
+            background-color: var(--primary-light);
         }
-        [data-bs-theme="dark"] {
-            --bs-body-bg: #212529;
-            --bs-body-color: #f8f9fa;
+
+        .drag-area i {
+            color: var(--primary-color);
+            margin-bottom: 16px;
         }
-        [data-bs-theme="dark"] .drag-area {
-            border-color: #495057;
-            color: #f8f9fa;
+
+        .drag-area h4 {
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            font-weight: 500;
         }
-        [data-bs-theme="dark"] .card {
-            background-color: #343a40;
-            border-color: #495057;
+
+        .drag-area p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .progress {
+            background-color: #E0E0E0;
+            border-radius: 4px;
+            height: 4px;
+            margin: 16px 0;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            background-color: var(--primary-color);
+            height: 100%;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        .results {
+            margin-top: 24px;
+        }
+
+        .file-card {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            border: 1px solid var(--divider-color);
+            border-radius: 4px;
+            margin-bottom: 8px;
+            background: var(--surface-color);
+        }
+
+        .file-icon {
+            margin-right: 16px;
+            color: var(--primary-color);
+        }
+
+        .file-info {
+            flex-grow: 1;
+        }
+
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            border-radius: 4px;
+            border: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--primary-color);
+            color: var(--primary-color);
+        }
+
+        .btn-outline:hover {
+            background-color: var(--primary-color);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .error-message {
+            background-color: #FFEBEE;
+            color: var(--error-color);
+            padding: 12px;
+            border-radius: 4px;
+            margin: 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .success-message {
+            background-color: #E8F5E9;
+            color: var(--success-color);
+            padding: 12px;
+            border-radius: 4px;
+            margin: 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 8px;
+            }
+
+            .card {
+                padding: 16px;
+            }
+
+            .file-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .file-actions {
+                margin-top: 8px;
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .btn {
+                padding: 8px 12px;
+                font-size: 0.813rem;
+            }
         }
     </style>
 </head>
 <body>
-    <button class="btn btn-outline-primary theme-switch" onclick="toggleTheme()">
-        <i class="fas fa-sun"></i>
-        <i class="fas fa-moon"></i>
-    </button>
-
-    <div class="container py-5">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <h1 class="text-center mb-4">
-                    <i class="fas fa-file-pdf text-danger"></i>
-                    HiConvert
-                </h1>
-                
-                <div class="card">
-                    <div class="card-body">
-                        <form id="uploadForm" enctype="multipart/form-data">
-                            <div class="drag-area" onclick="document.getElementById('folder-input').click()">
-                                <i class="fas fa-folder-open fa-3x mb-3"></i>
-                                <h4>Sélectionnez un dossier ou glissez-le ici</h4>
-                                <p class="text-muted">Le dossier doit contenir un fichier nommé "plan.pdf"</p>
-                                <input type="file" id="folder-input" name="folder" webkitdirectory directory multiple style="display: none;">
-                            </div>
-
-                            <div class="progress mt-3" style="display: none;">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"></div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-
-                <div id="results" class="file-list">
-                    <!-- Les résultats seront affichés ici -->
-                </div>
-            </div>
+    <div class="app-bar">
+        <div class="container">
+            <h1 class="app-title">HiConvert</h1>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <button class="theme-switch" onclick="toggleTheme()" title="Changer de thème">
+        <i class="material-icons">dark_mode</i>
+    </button>
+
+    <div class="container">
+        <div class="card">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="drag-area" onclick="document.getElementById('folder-input').click()">
+                    <i class="material-icons" style="font-size: 48px;">folder_open</i>
+                    <h4>Sélectionnez un dossier ou glissez-le ici</h4>
+                    <p>Le dossier doit contenir un fichier nommé "plan.pdf"</p>
+                    <input type="file" 
+                           id="folder-input" 
+                           name="folder" 
+                           webkitdirectory 
+                           directory 
+                           mozdirectory
+                           multiple 
+                           style="display: none;">
+                </div>
+
+                <div class="progress" style="display: none;">
+                    <div class="progress-bar" role="progressbar"></div>
+                </div>
+            </form>
+
+            <div id="error" class="error-message" style="display: none;">
+                <i class="material-icons">error</i>
+                <span></span>
+            </div>
+
+            <div id="results" class="results"></div>
+        </div>
+    </div>
+
     <script>
         // Gestion du thème
         function toggleTheme() {
-            const html = document.documentElement;
-            const currentTheme = html.getAttribute('data-bs-theme');
-            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            html.setAttribute('data-bs-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
+            const body = document.body;
+            const icon = document.querySelector('.theme-switch i');
+            
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.removeAttribute('data-theme');
+                icon.textContent = 'dark_mode';
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                icon.textContent = 'light_mode';
+                localStorage.setItem('theme', 'dark');
+            }
         }
 
         // Charger le thème sauvegardé
         document.addEventListener('DOMContentLoaded', () => {
             const savedTheme = localStorage.getItem('theme') || 'light';
-            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+            if (savedTheme === 'dark') {
+                document.body.setAttribute('data-theme', 'dark');
+                document.querySelector('.theme-switch i').textContent = 'light_mode';
+            }
         });
 
         // Gestion du drag & drop et upload
@@ -158,21 +392,45 @@
                 showError('Aucun fichier sélectionné');
                 return;
             }
-            uploadFiles(files);
-        }
+            
+            // Vérifier si plan.pdf existe et récupérer le chemin complet
+            let planPdfFile = null;
+            
+            for (const file of files) {
+                console.log('Fichier trouvé:', file.name);
+                console.log('Chemin relatif:', file.webkitRelativePath);
+                
+                if (file.name.toLowerCase() === 'plan.pdf') {
+                    planPdfFile = file;
+                    console.log('Fichier plan.pdf trouvé dans:', file.webkitRelativePath);
+                    
+                    // Extraire le nom du dossier parent
+                    const pathParts = file.webkitRelativePath.split('/');
+                    if (pathParts.length > 1) {
+                        const folderName = pathParts[pathParts.length - 2];
+                        console.log('Nom du dossier parent:', folderName);
+                    }
+                    break;
+                }
+            }
 
-        function uploadFiles(files) {
-            // Vérifier si plan.pdf existe dans les fichiers
-            const hasPlanPdf = files.some(file => file.name.toLowerCase() === 'plan.pdf');
-            if (!hasPlanPdf) {
+            if (!planPdfFile) {
                 showError('Aucun fichier plan.pdf trouvé dans le dossier sélectionné');
                 return;
             }
 
+            uploadFiles(files);
+        }
+
+        function uploadFiles(files) {
             const formData = new FormData();
-            files.forEach(file => {
+            
+            // Ajouter tous les fichiers en conservant leur chemin relatif
+            for (const file of files) {
                 formData.append('folder', file);
-            });
+                console.log('Ajout du fichier:', file.name);
+                console.log('Chemin relatif:', file.webkitRelativePath);
+            }
 
             progress.style.display = 'flex';
             progressBar.style.width = '0%';
@@ -187,7 +445,9 @@
             })
             .then(response => {
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json().then(data => {
+                        throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                    });
                 }
                 return response.json();
             })
@@ -201,7 +461,7 @@
             })
             .catch(error => {
                 progress.style.display = 'none';
-                showError('Erreur lors du traitement des fichiers: ' + error.message);
+                showError(error.message);
                 console.error('Error:', error);
             });
 
@@ -228,48 +488,76 @@
             results.innerHTML = '';
 
             results.forEach(result => {
-                const card = document.createElement('div');
-                card.className = 'card file-card mb-3';
-                card.innerHTML = `
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <i class="fas fa-file-pdf text-danger"></i>
+                const pdfHtml = `
+                    <div class="file-info">
+                        <div class="file-name">
+                            <i class="material-icons file-icon">picture_as_pdf</i>
                             ${result.pdf.name}
-                        </h5>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <h6>PDF</h6>
-                                <a href="${result.pdf.view_url}" target="_blank" class="btn btn-sm btn-primary">
-                                    <i class="fas fa-eye"></i> Voir
-                                </a>
-                                <a href="${result.pdf.download_url}" class="btn btn-sm btn-success">
-                                    <i class="fas fa-download"></i> Télécharger
-                                </a>
+                        </div>
+                        <div class="file-actions">
+                            <a href="${result.pdf.view_url}" target="_blank" class="btn btn-primary">
+                                <i class="material-icons">visibility</i>
+                                Voir
+                            </a>
+                            <a href="${result.pdf.download_url}" class="btn btn-outline">
+                                <i class="material-icons">download</i>
+                                Télécharger
+                            </a>
+                        </div>
+                    </div>
+                `;
+                
+                const csvHtml = `
+                    <div class="file-info">
+                        <div class="file-name">
+                            <i class="material-icons file-icon">table_chart</i>
+                            ${result.csv.name}
+                        </div>
+                        <div class="file-actions">
+                            <a href="${result.csv.view_url}" target="_blank" class="btn btn-primary">
+                                <i class="material-icons">visibility</i>
+                                Voir
+                            </a>
+                            <a href="${result.csv.download_url}" class="btn btn-outline">
+                                <i class="material-icons">download</i>
+                                Télécharger
+                            </a>
+                        </div>
+                    </div>
+                `;
+                
+                const combinedActions = `
+                    <div class="file-card">
+                        <div class="file-info">
+                            <div class="file-name">
+                                <i class="material-icons file-icon">compare</i>
+                                Voir ou télécharger les deux fichiers
                             </div>
-                            <div class="col-md-6">
-                                <h6>CSV</h6>
-                                <a href="${result.csv.view_url}" target="_blank" class="btn btn-sm btn-primary">
-                                    <i class="fas fa-eye"></i> Voir
+                            <div class="file-actions">
+                                <a href="/view-both/${result.pdf.file_id}/${result.csv.file_id}" target="_blank" class="btn btn-primary">
+                                    <i class="material-icons">preview</i>
+                                    Voir côte à côte
                                 </a>
-                                <a href="${result.csv.download_url}" class="btn btn-sm btn-success">
-                                    <i class="fas fa-download"></i> Télécharger
+                                <a href="/download-both/${result.pdf.file_id}/${result.csv.file_id}" class="btn btn-outline">
+                                    <i class="material-icons">download</i>
+                                    Télécharger les deux
                                 </a>
                             </div>
                         </div>
                     </div>
                 `;
-                document.getElementById('results').appendChild(card);
+                
+                results.innerHTML += pdfHtml + csvHtml + combinedActions;
             });
         }
 
         function showError(message) {
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-danger alert-dismissible fade show';
-            alert.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.getElementById('results').appendChild(alert);
+            const errorDiv = document.getElementById('error');
+            errorDiv.style.display = 'flex';
+            errorDiv.querySelector('span').textContent = message;
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
         }
     </script>
 </body>

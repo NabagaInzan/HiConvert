@@ -12,3 +12,5 @@ Pillow>=10.0.0
 reportlab>=4.0.4
 matplotlib>=3.7.1
 seaborn>=0.12.2
+supabase-py>=2.3.1
+Django>=5.0.0

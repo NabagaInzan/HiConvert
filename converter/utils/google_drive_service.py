@@ -71,3 +71,63 @@ class GoogleDriveService:
         except Exception as e:
             logger.error(f"Erreur lors de la suppression du fichier {file_id}: {str(e)}")
             return False
+
+    def get_file_url(self, file_id):
+        """Obtient l'URL de visualisation d'un fichier"""
+        try:
+            # Vérifier que le fichier existe et est accessible
+            file = self.service.files().get(
+                fileId=file_id,
+                fields='id, mimeType'
+            ).execute()
+            
+            # Retourner l'URL de prévisualisation Google Drive
+            return f"https://drive.google.com/file/d/{file_id}/preview"
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération de l'URL du fichier {file_id}: {str(e)}")
+            raise
+
+    def get_download_url(self, file_id):
+        """Obtient l'URL de téléchargement d'un fichier"""
+        try:
+            # Vérifier que le fichier existe et est accessible
+            file = self.service.files().get(
+                fileId=file_id,
+                fields='id'
+            ).execute()
+            
+            # Retourner l'URL de téléchargement direct
+            return f"https://drive.google.com/uc?export=download&id={file_id}"
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération de l'URL de téléchargement du fichier {file_id}: {str(e)}")
+            raise
+
+    def get_file_metadata(self, file_id):
+        """Obtient les métadonnées d'un fichier"""
+        try:
+            return self.service.files().get(
+                fileId=file_id,
+                fields='id, name, mimeType, webViewLink, webContentLink'
+            ).execute()
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération des métadonnées du fichier {file_id}: {str(e)}")
+            raise
+
+    def list_files(self, page_size=10, page_token=None):
+        """Liste les fichiers du Drive"""
+        try:
+            results = self.service.files().list(
+                pageSize=page_size,
+                fields="nextPageToken, files(id, name, mimeType, webViewLink, webContentLink)",
+                pageToken=page_token
+            ).execute()
+            
+            return {
+                'files': results.get('files', []),
+                'next_page_token': results.get('nextPageToken')
+            }
+        except Exception as e:
+            logger.error(f"Erreur lors de la liste des fichiers: {str(e)}")
+            raise
