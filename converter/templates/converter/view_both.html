@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="fr" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisation PDF et CSV - {{ csv_filename }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+        .table th {
+            background-color: #f8f9fa;
+            position: sticky;
+            top: 0;
+        }
+        .coordinates {
+            font-family: monospace;
+        }
+        .pdf-container {
+            width: 100%;
+            height: 800px;
+            border: 1px solid #ddd;
+            margin-bottom: 20px;
+            background: #f8f9fa;
+            position: relative;
+        }
+        .theme-switch {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        [data-bs-theme="dark"] .theme-switch .fa-sun {
+            display: inline-block;
+        }
+        [data-bs-theme="dark"] .theme-switch .fa-moon {
+            display: none;
+        }
+        [data-bs-theme="light"] .theme-switch .fa-sun {
+            display: none;
+        }
+        [data-bs-theme="light"] .theme-switch .fa-moon {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <button class="btn btn-outline-primary theme-switch" onclick="toggleTheme()">
+        <i class="fas fa-sun"></i>
+        <i class="fas fa-moon"></i>
+    </button>
+
+    <div class="container-fluid py-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>
+                <i class="fas fa-file-pdf text-danger"></i>
+                {{ pdf_filename }} & 
+                <i class="fas fa-table text-primary"></i>
+                {{ csv_filename }}
+            </h1>
+            <div>
+                <a href="/download-both/{{ csv_path }}" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Télécharger ZIP
+                </a>
+                <a href="{% url 'index' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Retour
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-pdf text-danger"></i>
+                            Plan PDF
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="pdf-container">
+                            <object
+                                data="/view-pdf/{{ pdf_path }}"
+                                type="application/pdf"
+                                width="100%"
+                                height="100%">
+                                <p>Le navigateur ne peut pas afficher le PDF. 
+                                    <a href="/download/{{ pdf_path }}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-download"></i> Télécharger le PDF
+                                    </a>
+                                </p>
+                            </object>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">
+                                <i class="fas fa-table text-primary"></i>
+                                Coordonnées
+                            </h5>
+                            <span class="badge bg-primary">{{ total_rows }} points</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            {{ table|safe }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Gestion du thème
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Charger le thème sauvegardé
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
+        });
+    </script>
+</body>
+</html>

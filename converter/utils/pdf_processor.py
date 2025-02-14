@@ -66,3 +66,44 @@ class PDFProcessor:
         except Exception as e:
             logger.error(f"Erreur lors du traitement du PDF: {str(e)}")
             raise
+
+    def extract_coordinates(self, pdf_path):
+        """
+        Extrait les coordonnées X et Y d'un fichier PDF.
+        Retourne une liste de dictionnaires avec les coordonnées.
+        """
+        try:
+            logger.info(f"Extraction des coordonnées depuis: {pdf_path}")
+            
+            # Utiliser la méthode process_pdf existante
+            numbers = []
+            images = convert_from_path(pdf_path)
+            
+            for i, image in enumerate(images):
+                # Convertir l'image PIL en tableau numpy
+                image_np = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+                
+                # Extraire le texte
+                results = self.reader.readtext(image_np)
+                
+                # Extraction des nombres
+                for result in results:
+                    text = result[1]
+                    extracted_numbers = re.findall(r'\b\d{5,}(?:\.\d+)?\b', text)
+                    valid_numbers = [float(num.replace(',', '.')) for num in extracted_numbers if float(num.replace(',', '.')) > 100000]
+                    numbers.extend(valid_numbers)
+            
+            # Diviser la liste en coordonnées X et Y
+            coordinates = []
+            for i in range(0, len(numbers)-1, 2):
+                coordinates.append({
+                    'X': numbers[i],
+                    'Y': numbers[i+1]
+                })
+            
+            logger.info(f"Extraction terminée. {len(coordinates)} paires de coordonnées trouvées.")
+            return coordinates
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de l'extraction des coordonnées: {str(e)}")
+            raise

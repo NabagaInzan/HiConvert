@@ -1,205 +1,276 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-bs-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hi Convert - Traitement PDF</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>HiConvert - Convertisseur de PDF</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        .directory-select-area {
+        .drag-area {
             border: 2px dashed #ccc;
-            border-radius: 8px;
-            padding: 30px;
+            padding: 2rem;
             text-align: center;
-            background: #f8f9fa;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s ease;
         }
-        .directory-select-area:hover {
-            border-color: #0d6efd;
-            background: #e9ecef;
-        }
-        .logo {
-            max-width: 100px;
-            height: auto;
+        .drag-area.active {
+            border-color: #007bff;
+            background-color: rgba(0, 123, 255, 0.1);
         }
         .progress {
-            height: 25px;
+            display: none;
+            margin-top: 1rem;
         }
-        .btn-file-select {
-            position: relative;
-            overflow: hidden;
+        .theme-switch {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
         }
-        .btn-file-select input[type=file] {
-            position: absolute;
-            top: 0;
-            right: 0;
-            min-width: 100%;
-            min-height: 100%;
-            font-size: 100px;
-            text-align: right;
-            filter: alpha(opacity=0);
-            opacity: 0;
-            outline: none;
-            background: white;
-            cursor: inherit;
-            display: block;
+        .file-list {
+            margin-top: 2rem;
+        }
+        .file-card {
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+        .file-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        [data-bs-theme="dark"] {
+            --bs-body-bg: #212529;
+            --bs-body-color: #f8f9fa;
+        }
+        [data-bs-theme="dark"] .drag-area {
+            border-color: #495057;
+            color: #f8f9fa;
+        }
+        [data-bs-theme="dark"] .card {
+            background-color: #343a40;
+            border-color: #495057;
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <button class="btn btn-outline-primary theme-switch" onclick="toggleTheme()">
+        <i class="fas fa-sun"></i>
+        <i class="fas fa-moon"></i>
+    </button>
+
+    <div class="container py-5">
         <div class="row justify-content-center">
             <div class="col-md-8">
-                <div class="card mt-5">
-                    <div class="card-header text-center">
-                        <i class="fas fa-file-pdf fa-3x text-primary mb-3"></i>
-                        <h1 class="mt-2">Hi Convert</h1>
-                    </div>
+                <h1 class="text-center mb-4">
+                    <i class="fas fa-file-pdf text-danger"></i>
+                    HiConvert
+                </h1>
+                
+                <div class="card">
                     <div class="card-body">
-                        <form id="processForm" class="text-center" enctype="multipart/form-data">
-                            <div class="mb-4">
-                                <div class="directory-select-area" id="directoryArea">
-                                    <i class="fas fa-folder-open fa-3x mb-3 text-primary"></i>
-                                    <p class="mb-3">Sélectionnez les dossiers contenant vos fichiers PDF de plans</p>
-                                    <div class="alert alert-info">
-                                        <i class="fas fa-info-circle"></i> Note : Seuls les fichiers nommés exactement "plan.pdf" seront traités
-                                    </div>
-                                    <div class="btn-group">
-                                        <span class="btn btn-primary btn-file-select">
-                                            <i class="fas fa-folder"></i> Sélectionner un dossier
-                                            <input type="file" id="pdfFiles" name="files[]" multiple accept=".pdf" webkitdirectory directory>
-                                        </span>
-                                        <span class="btn btn-secondary btn-file-select">
-                                            <i class="fas fa-file"></i> Sélectionner des fichiers
-                                            <input type="file" id="pdfFilesOnly" name="files[]" multiple accept=".pdf">
-                                        </span>
-                                    </div>
-                                    <div id="selectedFiles" class="mt-3 text-start"></div>
-                                </div>
+                        <form id="uploadForm" enctype="multipart/form-data">
+                            <div class="drag-area" onclick="document.getElementById('folder-input').click()">
+                                <i class="fas fa-folder-open fa-3x mb-3"></i>
+                                <h4>Sélectionnez un dossier ou glissez-le ici</h4>
+                                <p class="text-muted">Le dossier doit contenir un fichier nommé "plan.pdf"</p>
+                                <input type="file" id="folder-input" name="folder" webkitdirectory directory multiple style="display: none;">
                             </div>
-                            <div id="processInfo" class="mb-3">
-                                <button type="submit" class="btn btn-success btn-lg">
-                                    <i class="fas fa-cog"></i> Traiter les fichiers
-                                </button>
+
+                            <div class="progress mt-3" style="display: none;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"></div>
                             </div>
                         </form>
-
-                        <div id="progressArea" class="d-none">
-                            <div class="progress mb-3">
-                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-                            </div>
-                            <p class="text-center" id="processingStatus">Traitement en cours...</p>
-                        </div>
-
-                        <div id="resultsArea" class="d-none">
-                            <h4 class="text-center mb-3">Résultats</h4>
-                            <div id="resultsContent"></div>
-                        </div>
                     </div>
+                </div>
+
+                <div id="results" class="file-list">
+                    <!-- Les résultats seront affichés ici -->
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function updateSelectedFiles(files) {
-            const selectedFiles = document.getElementById('selectedFiles');
-            if (files.length > 0) {
-                let html = '<div class="alert alert-info">';
-                html += `<strong>${files.length} fichier(s) sélectionné(s):</strong><br>`;
-                html += '<ul class="mb-0">';
-                for (let i = 0; i < Math.min(files.length, 5); i++) {
-                    html += `<li>${files[i].name}</li>`;
-                }
-                if (files.length > 5) {
-                    html += `<li>... et ${files.length - 5} autres fichiers</li>`;
-                }
-                html += '</ul></div>';
-                selectedFiles.innerHTML = html;
-            } else {
-                selectedFiles.innerHTML = '';
-            }
+        // Gestion du thème
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-bs-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-bs-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
         }
 
-        document.getElementById('pdfFiles').addEventListener('change', function(e) {
-            updateSelectedFiles(this.files);
+        // Charger le thème sauvegardé
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', savedTheme);
         });
 
-        document.getElementById('pdfFilesOnly').addEventListener('change', function(e) {
-            updateSelectedFiles(this.files);
+        // Gestion du drag & drop et upload
+        const dragArea = document.querySelector('.drag-area');
+        const folderInput = document.getElementById('folder-input');
+        const uploadForm = document.getElementById('uploadForm');
+        const progressBar = document.querySelector('.progress-bar');
+        const progress = document.querySelector('.progress');
+        const results = document.getElementById('results');
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false);
         });
 
-        document.getElementById('processForm').addEventListener('submit', async function(e) {
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dragArea.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dragArea.addEventListener(eventName, unhighlight, false);
+        });
+
+        dragArea.addEventListener('drop', handleDrop, false);
+        folderInput.addEventListener('change', handleFiles, false);
+
+        function preventDefaults(e) {
             e.preventDefault();
-            
-            const pdfFiles = [...document.getElementById('pdfFiles').files, ...document.getElementById('pdfFilesOnly').files];
-            if (!pdfFiles.length) {
-                alert('Veuillez sélectionner des fichiers PDF.');
+            e.stopPropagation();
+        }
+
+        function highlight(e) {
+            dragArea.classList.add('active');
+        }
+
+        function unhighlight(e) {
+            dragArea.classList.remove('active');
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles({ target: { files: files } });
+        }
+
+        function handleFiles(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) {
+                showError('Aucun fichier sélectionné');
+                return;
+            }
+            uploadFiles(files);
+        }
+
+        function uploadFiles(files) {
+            // Vérifier si plan.pdf existe dans les fichiers
+            const hasPlanPdf = files.some(file => file.name.toLowerCase() === 'plan.pdf');
+            if (!hasPlanPdf) {
+                showError('Aucun fichier plan.pdf trouvé dans le dossier sélectionné');
                 return;
             }
 
             const formData = new FormData();
-            for (let i = 0; i < pdfFiles.length; i++) {
-                formData.append('files[]', pdfFiles[i]);
+            files.forEach(file => {
+                formData.append('folder', file);
+            });
+
+            progress.style.display = 'flex';
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+
+            // Nettoyer les résultats précédents
+            results.innerHTML = '';
+
+            fetch('/process', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                progress.style.display = 'none';
+                if (data.error) {
+                    showError(data.error);
+                } else {
+                    showResults(data.results);
+                }
+            })
+            .catch(error => {
+                progress.style.display = 'none';
+                showError('Erreur lors du traitement des fichiers: ' + error.message);
+                console.error('Error:', error);
+            });
+
+            // Simuler la progression
+            let width = 0;
+            const interval = setInterval(() => {
+                if (width >= 90) {
+                    clearInterval(interval);
+                } else {
+                    width++;
+                    progressBar.style.width = width + '%';
+                    progressBar.textContent = width + '%';
+                }
+            }, 50);
+        }
+
+        function showResults(results) {
+            if (!Array.isArray(results)) {
+                console.error('Results is not an array:', results);
+                return;
             }
 
-            document.getElementById('processInfo').classList.add('d-none');
-            const progressArea = document.getElementById('progressArea');
-            const resultsArea = document.getElementById('resultsArea');
-            progressArea.classList.remove('d-none');
-            resultsArea.classList.add('d-none');
+            // Nettoyer les résultats précédents
+            results.innerHTML = '';
 
-            try {
-                const response = await fetch('/process', {
-                    method: 'POST',
-                    body: formData
-                });
+            results.forEach(result => {
+                const card = document.createElement('div');
+                card.className = 'card file-card mb-3';
+                card.innerHTML = `
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="fas fa-file-pdf text-danger"></i>
+                            ${result.pdf.name}
+                        </h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>PDF</h6>
+                                <a href="${result.pdf.view_url}" target="_blank" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i> Voir
+                                </a>
+                                <a href="${result.pdf.download_url}" class="btn btn-sm btn-success">
+                                    <i class="fas fa-download"></i> Télécharger
+                                </a>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>CSV</h6>
+                                <a href="${result.csv.view_url}" target="_blank" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-eye"></i> Voir
+                                </a>
+                                <a href="${result.csv.download_url}" class="btn btn-sm btn-success">
+                                    <i class="fas fa-download"></i> Télécharger
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('results').appendChild(card);
+            });
+        }
 
-                const data = await response.json();
-                const resultsContent = document.getElementById('resultsContent');
-                resultsContent.innerHTML = '';
-                
-                data.results.forEach(result => {
-                    const item = document.createElement('div');
-                    item.className = `alert ${result.status === 'success' ? 'alert-success' : 'alert-danger'} mb-3`;
-                    
-                    if (result.status === 'success') {
-                        item.innerHTML = `
-                            <strong>${result.file}</strong>
-                            <br>
-                            <small class="text-muted">${result.message}</small>
-                            <br>
-                            <a href="/download/${encodeURIComponent(result.csv_path)}" class="btn btn-primary btn-sm mt-2">
-                                <i class="fas fa-download"></i> Télécharger CSV
-                            </a>
-                        `;
-                    } else {
-                        item.innerHTML = `
-                            <strong>${result.file}</strong>
-                            <br>
-                            <small>${result.message}</small>
-                            ${result.message.includes("n'est pas un fichier PDF valide") ? `
-                                <br>
-                                <small class="text-muted">Note : Le fichier doit être nommé exactement "plan.pdf"</small>
-                            ` : ''}
-                        `;
-                    }
-                    
-                    resultsContent.appendChild(item);
-                });
-                
-                progressArea.classList.add('d-none');
-                resultsArea.classList.remove('d-none');
-            } catch (error) {
-                alert('Une erreur est survenue lors du traitement des fichiers.');
-                progressArea.classList.add('d-none');
-                document.getElementById('processInfo').classList.remove('d-none');
-            }
-        });
+        function showError(message) {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger alert-dismissible fade show';
+            alert.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.getElementById('results').appendChild(alert);
+        }
     </script>
 </body>
 </html>

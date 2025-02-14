@@ -93,3 +93,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Configuration spécifique à l'application
 UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER', os.path.join(MEDIA_ROOT, 'uploads'))
 MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 20 * 1024 * 1024))  # 20MB par défaut
+
+# Configuration Google Drive
+GOOGLE_DRIVE_SETTINGS = {
+    'service_account_file': os.path.join(BASE_DIR, 'service-account-key.json'),
+}
+
+# Dossier de stockage temporaire
+TEMP_UPLOAD_FOLDER = os.path.join(BASE_DIR, 'temp_uploads')
+if not os.path.exists(TEMP_UPLOAD_FOLDER):
+    os.makedirs(TEMP_UPLOAD_FOLDER)

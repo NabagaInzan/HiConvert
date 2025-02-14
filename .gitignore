@@ -17,3 +17,6 @@ uploads/
 venv/
 env/
 ENV/
+
+# Google Cloud
+service-account-key.json
